@@ -23,11 +23,12 @@ type alias Todo =
 type alias Model =
   { task : List Todo
   , inputs : Todo
+  , isValid : Bool
   }
 
 init : Model
 init =
-  Model [] (Todo "" "" 0)
+  Model [] (Todo "" "" 0) True
 
 
 type Msg
@@ -42,13 +43,19 @@ update : Msg -> Model -> Model
 update msg model =
   case msg of
     AddTodo ->
-      let
-        oldInputs = model.inputs
-        task = Todo oldInputs.title oldInputs.description oldInputs.estimate
-        newInputs =
-          { oldInputs | title = "", description = "", estimate = 0 }
-      in
-        { model | inputs = newInputs, task = task :: model.task }
+      if String.isEmpty model.inputs.title || String.isEmpty model.inputs.description then
+        { model | isValid = False }
+      else
+        let
+          oldInputs = model.inputs
+          task = Todo oldInputs.title oldInputs.description oldInputs.estimate
+          newInputs =
+            { oldInputs | title = "", description = "", estimate = 0 }
+        in
+          { model | inputs = newInputs
+                  , task = task :: model.task
+                  , isValid = True
+                  }
 
     DeleteTodo idx ->
       { model | task = (removeAt idx model.task) }
@@ -59,7 +66,7 @@ update msg model =
         newInputs =
           {  oldInputs | title = newTitle }
       in
-        { model | inputs = newInputs }
+        { model | inputs = newInputs, isValid = True }
 
     ChangeDescription newDescription ->
       let
@@ -67,7 +74,7 @@ update msg model =
         newInputs =
           {  oldInputs | description = newDescription }
       in
-        { model | inputs = newInputs }
+        { model | inputs = newInputs, isValid = True }
 
     ChangeEstimate newEstimate ->
       let
@@ -81,9 +88,6 @@ update msg model =
         { model | inputs = newInputs }
 
 
--- modelの一覧をmapで表示すること
--- 別のフォームを作成すること
-
 view : Model -> Html Msg
 view model =
   div []
@@ -95,11 +99,13 @@ view model =
                 , value model.inputs.title
                 , onInput ChangeTitle
                 ] []
+        , stringValidation model.isValid model.inputs.title "タスク名を入力してください"
         , p [] [ text "タスクの詳細" ]
         , textarea [ placeholder "美味しいオムライスを作って食べること"
                    , value model.inputs.description
                    , onInput ChangeDescription
                    ] []
+        , stringValidation model.isValid model.inputs.description "タスクの詳細を入力してください"
         , p [] [ text "Estimate" ]
         , input [ type_ "number"
                 , placeholder "Estimate"
@@ -122,3 +128,11 @@ todoList todo idx =
   , p [] [ text ("Estimate: " ++ String.fromInt todo.estimate) ]
   , button [ onClick (DeleteTodo idx) ] [ text "削除" ]
   ]
+
+
+stringValidation : Bool -> String -> String -> Html Msg
+stringValidation isValid value errorText =
+  if not isValid && String.isEmpty value then
+    div [ style "color" "red" ] [ text errorText ]
+  else
+    div [ style "color" "black" ] []
